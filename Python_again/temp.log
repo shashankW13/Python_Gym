@@ -1,0 +1,4 @@
+06/27/2025 05:45:29 PM - root - INFO - Calling add() with (3, 5), {}
+06/27/2025 05:45:29 PM - root - INFO - Calling greet() with ('Alice',), {}
+06/27/2025 05:48:34 PM - root - INFO - Calling add() with (6, 5), {}
+06/27/2025 05:48:34 PM - root - INFO - Calling greet() with ('John',), {}
