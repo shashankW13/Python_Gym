@@ -35,8 +35,3 @@ def guess_word(word):
 
 
 print(guess_word(word))
-
-
-
-
-
