@@ -27,6 +27,7 @@ def cli_analytics_tool():
             df_data_dict['numeric_columns_min'] = df[numeric_columns].min().to_dict()
             df_data_dict['numeric_columns_max'] = df[numeric_columns].max().to_dict()
             df_data_dict['numeric_columns_count'] = df[numeric_columns].count().to_dict()
+            
             print(f"'{file_name}.csv' found!\nData uploaded successfully!\n")
             return df_data_dict
         
@@ -36,11 +37,33 @@ def cli_analytics_tool():
 
     #Preview Data
     def preview_data(df):
-        print("\n")
-        print("PREVIEW DATA".center(40, '='))
-        print(f"Total rows in {df_dict['file_name']}.csv: ", len(df))
-        print(f"\nColumn headers in {df_dict['file_name']}.csv:\n", df.columns)
-        print(f"\nFirst 15 rows in {df_dict['file_name']}.csv:\n", df.head(15))
+        continue_preview = 'y'
+        while continue_preview == 'y':
+            print("\n")
+            print("PREVIEW DATA".center(40, '='))
+            print("1.Total rows")
+            print("2.Column headers")
+            print("3.Display first number of rows")
+
+            try:
+                preview_choice = int(input("Enter your choice (1-3): "))
+            except ValueError:
+                print("Enter numerical choices!")
+
+            if preview_choice == 1:
+                print(f"Total rows in {df_dict['file_name']}.csv: {len(df)}\n")
+                continue_preview = input("Stay on this menu (y/n)?: ")
+                 
+            elif preview_choice == 2:
+                print(f"\nColumn headers in {df_dict['file_name']}.csv: {df.columns}\n")
+                continue_preview = input("Stay on this menu (y/n)?: ")
+            
+            elif preview_choice == 3:
+                print(f"\nFirst 15 rows in {df_dict['file_name']}.csv: {df.head(15)}\n")
+                continue_preview = input("Stay on this menu (y/n)?: ")
+            
+            else:
+                return "No operations available for this choice!"
 
     #Analyze numeric column
     def analyze_column(df):
@@ -85,38 +108,27 @@ def cli_analytics_tool():
             
             if column_choice == 1:
                 print("\nTOTAL:", total(df_dict))
-                try:
-                    continue_choice = input("Stay on this menu (y/n)?: ")
-                except:
-                    print("Enter numerical choices!")
+                continue_choice = input("Stay on this menu (y/n)?: ")
+
             
-            if column_choice == 2:
+            elif column_choice == 2:
                 print(average(df_dict))
-                try:
-                    continue_choice = input("Stay on this menu (y/n)?: ")
-                except:
-                    print("Enter numerical choices!")
+                continue_choice = input("Stay on this menu (y/n)?: ")
 
-            if column_choice == 3:
+            elif column_choice == 3:
                 print(min_value(df_dict))
-                try:
-                    continue_choice = input("Stay on this menu (y/n)?: ")
-                except:
-                    print("Enter numerical choices!")
+                continue_choice = input("Stay on this menu (y/n)?: ")
 
-            if column_choice == 4:
+            elif column_choice == 4:
                 print(max_value(df_dict))
-                try:
-                    continue_choice = input("Stay on this menu (y/n)?: ")
-                except:
-                    print("Enter numerical choices!")
+                continue_choice = input("Stay on this menu (y/n)?: ")
 
-            if column_choice == 5:
+            elif column_choice == 5:
                 print(count_values(df_dict))
-                try:
-                    continue_choice = input("Stay on this menu (y/n)?: ")
-                except:
-                    print("Enter numerical choices!")
+                continue_choice = input("Stay on this menu (y/n)?: ")
+            
+            else:
+                print("No operations available for this choice!")
 
     #Check missing values
     def check_missing_values(df):
@@ -148,8 +160,10 @@ def cli_analytics_tool():
             plt.xlabel(column_name)
             plt.ylabel('Frequency')
             plt.show()
+
         except ValueError:
             print("Enter numerical ranges!")
+
         except KeyError:
             print(f"Invalid column name '{column_name}'!")
 
@@ -182,31 +196,34 @@ def cli_analytics_tool():
                 except ValueError:
                     print("Enter numerical choices!")
 
-            if operation_choice == 2:
+            elif operation_choice == 2:
                 analyze_column(df_dict['df'])
                 try:
                     continue_choice = input("Do you want to continue (y/n)?: ")
                 except ValueError:
                     print("Enter numerical choices!")
 
-            if operation_choice == 3:
+            elif operation_choice == 3:
                 print(check_missing_values(df_dict['df']))
                 try:
                     continue_choice = input("Do you want to continue (y/n)?: ")
                 except ValueError:
                     print("Enter numerical choices!")
 
-            if operation_choice == 4:
+            elif operation_choice == 4:
                 text_histogram(df_dict['df'])
                 try:
                     continue_choice = input("Do you want to continue (y/n)?: ")
                 except ValueError:
                     print("Enter numerical choices!")
                 
-            if operation_choice == 5:
+            elif operation_choice == 5:
                 print("\n")
                 print("Thank you for using Data Analytics CLI!".center(70, "="))
                 break
+
+            else:
+                print("No operation available for this choice!")
         else:
             print("\n")
             print("Thank you for using Data Analytics CLI!".center(70, "="))
