@@ -72,10 +72,14 @@ def cli_analytics_tool():
             print("\n")
             print("ANALYZE NUMERIC COLUMN".center(40, '='))
 
+            # non_numeric_cols = [columns for columns in df.columns if columns not in numeric_columns]
+            # non_numeric_cols_df = df.select_dtypes(exclude=['number'])
             
-            print(f"Available Numeric Columns: {", ".join(numeric_columns)}")
+            print(f"Available Numeric Columns: {", ".join(numeric_columns)}\n")
+            # print(f"Non-numeric columns: {", ".join(non_numeric_cols)}\n")
 
             column_name = input("Enter the column name you want to analyze: ").strip().title()
+            
             if column_name not in numeric_columns:
                 return f"Can't operate on non-numeric '{column_name}' column"
 
