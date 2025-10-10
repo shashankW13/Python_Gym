@@ -1,122 +1,136 @@
-from datetime import datetime, timedelta, date
-import subprocess
-import urllib.request
 import threading
+import logging
 import requests
 import schedule
-import logging
 import sys
 import time
-from config import URL, LOGGER, DATETIME_FMT
+from datetime import datetime
+from config import URL, DATETIME_FMT, TIME_FMT, LOG_FMT, LOG_FILE
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+lock = threading.Lock()
+executed_jobs = 0
+run = True
+total_jobs = 0
 
-def config_logging():
-    formatter = logging.Formatter('%(asctime)s - [%(levelname)s]: %(message)s')
+def setup_logging_config():
+    formatter = logging.Formatter(LOG_FMT)
 
-    LOGGER.setLevel(logging.INFO)
-    api_log = logging.FileHandler('ifconfig.log')
+    api_log = logging.FileHandler(LOG_FILE)
     api_log.setFormatter(formatter)
-    LOGGER.addHandler(api_log)
+    api_log.setLevel(logging.INFO)
+    logger.addHandler(api_log)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    LOGGER.addHandler(console_handler)
+    console_log = logging.StreamHandler()
+    console_log.setFormatter(formatter)
+    console_log.setLevel(logging.INFO)
+    logger.addHandler(console_log)
+
 
 def job_thread(job):
     thread = threading.Thread(target=job)
     thread.start()
 
-def parse_timestamps(time):
-    try:
-        return datetime.strptime(time, DATETIME_FMT)
-    
-    except Exception as e:
-        LOGGER.error(f"Invalid time format: {time}")
-        return
 
-def timestamp_data():
+def parse_timestamp(timestamp: str)->list:
+    now = datetime.now()
+    try:
+        return datetime.strptime(timestamp, TIME_FMT).replace(
+            year=now.year, month=now.month, day=now.day
+        )
+    
+    except:
+        logger.error(f"Invalid timestamp {timestamp}")
+
+
+def timestamps_data():
     if len(sys.argv) != 2:
-        print("Error: Please enter timestamps")
+        print("Error: Enter timestamps in the format %H:%M:%S....")
         sys.exit(1)
 
-    timestamp_list = [t.strip() for t in sys.argv[1].split(",")]
-    return timestamp_list
+    return [parse_timestamp(tstamps.strip()) for tstamps in sys.argv[1].split(",") if parse_timestamp(tstamps.strip())]
+
+
+def executable_timestamps():
+    now = datetime.now()
+
+    timestamps_list = timestamps_data()
+
+    return [current_tstamps for current_tstamps in timestamps_list if current_tstamps >= now]
+
 
 def fetch_data():
-    # response = urllib.request.urlopen(URL)
-    # print(response.read().decode())
+
+    curl_header = {"User-Agent": "curl/8.0.1"}
     try:
-        headers = {"User-Agent": "curl/8.0.1"}
-        response = requests.get(URL, headers=headers)
-        print(response.text)
-        LOGGER.info("Succesfully called ifconfig.io")
-        
-    except requests.exceptions.RequestException as e:
-        LOGGER.error(e)
-        return f"Error: {e}"
+        response = requests.get(URL, headers=curl_header, timeout=5)
+        response.raise_for_status()
+        logger.info("Successfully called API at ifconfig.co")
+
+        global executed_jobs, run
+
+        with lock:
+            executed_jobs += 1
+
+            if executed_jobs == total_jobs:
+                run = False
+
+        return response.text
     
-    except requests.exceptions.HTTPError as e:
-        LOGGER.error(e)
-        return f"Error: {e}"
+    except requests.HTTPError as e:
+        executed_jobs += 1
 
-    # response = subprocess.run(['curl', URL],
-    #                           capture_output=True,
-    #                           text=True,
-    #                           check=True)
-    # print(response.stdout.strip())
+        if executed_jobs == total_jobs:
+            run = False
 
-def next_call(ptimestamp, pcurrent_time):
-    # timestamps_list = timestamp_data()
-    today = date.today()
-
-    wait_seconds = (datetime.combine(today, ptimestamp) - datetime.combine(today, pcurrent_time)).total_seconds()
-    return wait_seconds
+        logger.error(f"HTTP Error")
     
+    except requests.ConnectionError as c:
+        executed_jobs += 1
+
+        if executed_jobs == total_jobs:
+            run = False
+            
+        logger.error(f"Failed to connect '{URL}'")
+
+
+def schedule_timestamps():
+    global total_jobs
+    timestamps = executable_timestamps()
+    
+    total_jobs = len(timestamps)
+    
+    if timestamps:
+        for tstamps in timestamps:
+            schedule.every().day.at(datetime.strftime(tstamps, TIME_FMT)).do(job_thread, fetch_data)
+            logger.info(f"Scheduled API call at {tstamps}")
+        return True
+    
+    else:
+        logger.warning("No timestamps to schedule")
+        return False
+
+
+def run_schedule():
+    exec_tstamps = executable_timestamps()
+
+    while run:
+        schedule.run_pending()
+        time.sleep(1)
+
+        print("jobs = ", executed_jobs)
+        print("tstamps len = ", len(exec_tstamps))
+
+    
+
 def main():
-    config_logging()
-    timestamps = timestamp_data()
-    timestamps.sort()
+    setup_logging_config()
 
-    data_len = len(timestamps)
-    print(data_len)
+    if schedule_timestamps():
+        run_schedule()
 
-    for i, tstamps in enumerate(timestamps):
-        # schedule.every().day.at(tstamps).do(job_thread, fetch_data)
-        now = datetime.now()
-        current_time = now.strftime(DATETIME_FMT)
-
-        parsed_current_time = parse_timestamps(current_time).time()
-        try:
-            parsed_timestamp = parse_timestamps(tstamps).time()
-        except:
-            continue
-
-        print(i, tstamps)
-        print("now", parsed_current_time)
-
-        if i + 1 <= len(timestamps):
-            if parsed_current_time <= parsed_timestamp:
-                wait_seconds = next_call(parsed_timestamp, parsed_current_time)
-                LOGGER.info(f"Next call at {tstamps}, waiting for {wait_seconds:.0f} seconds....")
-                time.sleep(wait_seconds)
-
-                job_thread(fetch_data)
-            else:
-                print("continue", i, parsed_timestamp)
-                continue
-        
-        else:
-            LOGGER.info("All timestamps executed for today")
-            break
-
-    # for _ in range(data_len):
-    #     schedule.run_pending()
-    #     time.sleep(1)
+    logger.info("All timestamps executed for today")
 
 if __name__ == '__main__':
     main()
-    
-
-
-
